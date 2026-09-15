@@ -4,9 +4,10 @@ import numpy as np
 # CONFIGURACIÓN: pon aquí las rutas de tus 3 fotos
 
 rutas_imagenes = {
-    "azul": "Calibración\azul.jpeg",
-    "rojo-naranja": "Calibración\rojo-naranja.jpeg",
-    "amarillo": "Calibración\amarillo.jpeg",
+    "azul": "Visión Artificial\Pruebas\arbol4.png",
+    "rojo-naranja": "Visión Artificial\Pruebas\arbol4.png",
+    "amarillo": "Visión Artificial\Pruebas\arbol4.png",
+    "negra": "Visión Artificial\Pruebas\negra3.png"
 }
 
 # ============================================================
