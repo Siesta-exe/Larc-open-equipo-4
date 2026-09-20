@@ -5,7 +5,7 @@ import time
 
 IP_ESP32 = "192.168.8.125"
 url = f"http://{IP_ESP32}:81/stream"
-# Encender la linterna/flash de la ESP32-CAM
+
 requests.get(f"http://{IP_ESP32}/control?var=led_intensity&val=255")
 cap = cv.VideoCapture(url)
 
@@ -16,30 +16,26 @@ if not cap.isOpened():
 print("Conectado a la ESP32-CAM")
 print("Presiona ESC para salir")
 
-
-# --- AZUL ---
 azul_lower = np.array([106, 38,  40])
 azul_upper = np.array([125, 176, 200])
 
-# --- AMARILLO ---
 amarillo_lower = np.array([10, 35, 134])
 amarillo_upper = np.array([33, 108, 270])
 
-# --- ROJO / NARANJA (dos rangos porque el rojo envuelve 0/180) ---
 rojo_lower_1 = np.array([167,   90,  55])
 rojo_upper_1 = np.array([179,  194, 200])
                              #175   #163
 naranja_lower = np.array([171, 96,  70])
 naranja_upper = np.array([179, 255, 255])
 
-#Negra
 black_lower = np.array([120, 50, 15])
 black_upper = np.array([180, 130, 100])
+
 AREA_MINIMA = 150           # descarta ruido muy pequeño (no depende de la distancia real)
 CIRCULARIDAD_MINIMA = 0.77  # 1.0 = círculo perfecto; baja esto si pierdes pelotas lejanas
 KERNEL = np.ones((5, 5), np.uint8)
 
-# Una pelota debe permanecer visible este tiempo para evitar falsos positivos.
+
 TIEMPO_CONFIRMACION = 3.0
 INTERVALO_ACTUALIZACION = 3.0
 DISTANCIA_MAXIMA_SEGUIMIENTO = 80
@@ -135,7 +131,6 @@ def imprimir_coordenadas():
 def detectar_en_mascara(mascara, nombre_color):
     detecciones = []
 
-    # Limpieza morfológica: quita ruido pequeño y rellena huecos
     mascara = cv.morphologyEx(mascara, cv.MORPH_OPEN, KERNEL)
     mascara = cv.morphologyEx(mascara, cv.MORPH_CLOSE, KERNEL)
 
