@@ -32,7 +32,7 @@ black_lower = np.array([120, 50, 15])
 black_upper = np.array([180, 130, 100])
 
 AREA_MINIMA = 150           # descarta ruido muy pequeño (no depende de la distancia real)
-CIRCULARIDAD_MINIMA = 0.77  # 1.0 = círculo perfecto; baja esto si pierdes pelotas lejanas.
+CIRCULARIDAD_MINIMA = 0.77  # 1.0 = círculo perfecto; baja esto si pierdes pelotas lejanas
 KERNEL = np.ones((5, 5), np.uint8)
 
 
