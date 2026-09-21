@@ -14,38 +14,36 @@ enum EstadoNavegacion {
 EstadoNavegacion estadoActual = SEGUIDOR_LINEA;
 
 // Pines Ultrasonidos (ESP32)
-const int trigFrenteBajo = 5;
-const int echoFrenteBajo = 18;
+const int trigFrenteBajo = 2;   // Cambiado a GPIO 4 (Evita conflicto de Boot)
+const int echoFrenteBajo = 3;
 
-const int trigFrenteAlto = 16;
-const int echoFrenteAlto = 17;
+const int trigFrenteAlto = 4;
+const int echoFrenteAlto = 5;
 
-const int trigLateral = 19;
-const int echoLateral = 21;
+const int trigLateral = 6;
+const int echoLateral = 7;
 
 // Umbrales de distancia (cm)
-const int DIST_DETECCION_PISCINA = 18; // Distancia para frenar antes de tocar
-const int DIST_PARED_OBJETIVO = 15;    // Distancia lateral deseada a la piscina
-const int DIST_PARED_PERDIDA = 35;     // Distancia que confirma fin de pared
+const int DIST_DETECCION_PISCINA = 18; 
+const int DIST_PARED_OBJETIVO = 15;    
+const int DIST_PARED_PERDIDA = 35;     
 
-unsigned long tiempoEstado = 0; // Para temporizadores de seguridad
+unsigned long tiempoEstado = 0; 
 
 void setup() {
   Serial.begin(115200);
+  delay(500); 
   
-  pinMode(trigFrenteBajo, OUTPUT);
-  pinMode(echoFrenteBajo, INPUT);
-  
-  pinMode(trigFrenteAlto, OUTPUT);
-  pinMode(echoFrenteAlto, INPUT);
-  
-  pinMode(trigLateral, OUTPUT);
-  pinMode(echoLateral, INPUT);
-  
-  // TODO: Setup Motores e Infrarrojos
+  Serial.println("=================================");
+  Serial.println("ESP32 INICIADO CORRECTAMENTE");
+  Serial.println("=================================");
+
+  // Inicialización centralizada de los pines
+  setupUltrasonidos();
 }
 
 void loop() {
+  
   int distBajo = 0;
   int distLat = 0;
 
