@@ -1,5 +1,5 @@
 // ==========================================
-// Pestaña Principal: Robot_LARC.ino
+// Pestaña Principal: Robot_LARC.ino (Arduino Uno)
 // ==========================================
 
 enum EstadoNavegacion {
@@ -11,112 +11,106 @@ enum EstadoNavegacion {
   BUSQUEDA_LINEA
 };
 
-EstadoNavegacion estadoActual = SEGUIDOR_LINEA;
+EstadoNavegacion estadoActual = SEGUIDOR_LINEA; //[cite: 3]
 
-// Pines Ultrasonidos (ESP32)
-const int trigFrenteBajo = 2;   // Cambiado a GPIO 4 (Evita conflicto de Boot)
-const int echoFrenteBajo = 3;
+// Pines Ultrasonidos para Arduino Uno (Pines 2 al 7)[cite: 3]
+const int trigFrenteBajo = 2; //[cite: 3]
+const int echoFrenteBajo = 3; //[cite: 3]
 
-const int trigFrenteAlto = 4;
-const int echoFrenteAlto = 5;
+const int trigFrenteAlto = 4; //[cite: 3]
+const int echoFrenteAlto = 5; //[cite: 3]
 
-const int trigLateral = 6;
-const int echoLateral = 7;
+const int trigLateral = 6;    //[cite: 3]
+const int echoLateral = 7;    //[cite: 3]
 
-// Umbrales de distancia (cm)
-const int DIST_DETECCION_PISCINA = 18; 
-const int DIST_PARED_OBJETIVO = 15;    
-const int DIST_PARED_PERDIDA = 35;     
+// Umbrales de distancia (cm)[cite: 3]
+const int DIST_DETECCION_PISCINA = 18; //[cite: 3]
+const int DIST_PARED_OBJETIVO = 15;    //[cite: 3]
+const int DIST_PARED_PERDIDA = 35;     //[cite: 3]
 
-unsigned long tiempoEstado = 0; 
+unsigned long tiempoEstado = 0; //[cite: 3]
 
 void setup() {
-  Serial.begin(115200);
-  delay(500); 
+  Serial.begin(115200); //[cite: 3]
+  delay(500); //[cite: 3]
   
   Serial.println("=================================");
-  Serial.println("ESP32 INICIADO CORRECTAMENTE");
+  Serial.println("ARDUINO UNO INICIADO CORRECTAMENTE");
   Serial.println("=================================");
 
-  // Inicialización centralizada de los pines
-  setupUltrasonidos();
+  // Inicialización de pines mediante Ultrasonidos.ino
+  setupUltrasonidos(); //[cite: 3]
 }
 
 void loop() {
-  
-  int distBajo = 0;
-  int distLat = 0;
+  int distBajo = 0; //[cite: 3]
+  int distLat = 0;  //[cite: 3]
 
-  switch (estadoActual) {
+  switch (estadoActual) { //[cite: 3]
     
-    case SEGUIDOR_LINEA:
-      seguirLineaIR(); // Control de borde externo con TCRT5000
+    case SEGUIDOR_LINEA: //[cite: 3]
+      // seguirLineaIR(); // TODO: Implementar control con TCRT5000[cite: 3]
       
-      // Muestreo del sensor de detección de piscina (Frente-Bajo)
-      distBajo = leerDistancia(trigFrenteBajo, echoFrenteBajo);
-      if (distBajo < DIST_DETECCION_PISCINA) {
-        pararMotores();
-        tiempoEstado = millis();
-        estadoActual = GIRO_DESVIO; 
+      // Muestreo corregido del sensor Frente-Bajo usando la lectura filtrada[cite: 3, 4]
+      distBajo = leerDistanciaFiltrada(trigFrenteBajo, echoFrenteBajo); //[cite: 4]
+      if (distBajo < DIST_DETECCION_PISCINA) { //[cite: 3]
+        // pararMotores();[cite: 3]
+        tiempoEstado = millis(); //[cite: 3]
+        estadoActual = GIRO_DESVIO; //[cite: 3]
       }
       break;
 
-    case GIRO_DESVIO:
-      // Giro de 90° a la derecha para alinearse paralelo a la piscina
-      girarDerecha(); 
-      if (millis() - tiempoEstado > 650) { // Ajustar ms según calibración PWM
-        pararMotores();
-        estadoActual = SEGUIDOR_PARED;
+    case GIRO_DESVIO: //[cite: 3]
+      // girarDerecha(); //[cite: 3]
+      if (millis() - tiempoEstado > 650) { //[cite: 3]
+        // pararMotores();[cite: 3]
+        estadoActual = SEGUIDOR_PARED; //[cite: 3]
       }
       break;
 
-    case SEGUIDOR_PARED:
-      distLat = leerDistancia(trigLateral, echoLateral);
+    case SEGUIDOR_PARED: //[cite: 3]
+      // Muestreo corregido con la función de alto nivel del sensor lateral[cite: 3, 4]
+      distLat = obtenerDistanciaLateral(); //[cite: 4]
       
-      if (distLat < DIST_PARED_PERDIDA) {
-        // P-Controller simple o corrección Bang-Bang para mantener ~15cm
-        avanzarControladoPared(distLat, DIST_PARED_OBJETIVO); 
+      if (distLat < DIST_PARED_PERDIDA) { //[cite: 3]
+        // avanzarControladoPared(distLat, DIST_PARED_OBJETIVO);[cite: 3]
       } else {
-        // La pared terminó (se superó el largo de 720 mm de la piscina)
-        pararMotores();
-        tiempoEstado = millis();
-        estadoActual = LIBERAR_ESQUINA;
+        // pararMotores();[cite: 3]
+        tiempoEstado = millis(); //[cite: 3]
+        estadoActual = LIBERAR_ESQUINA; //[cite: 3]
       }
       break;
 
-    case LIBERAR_ESQUINA:
-      // Avanzar un tramo recto adicional para librar el ancho de la piscina (200 mm)
-      avanzar();
-      if (millis() - tiempoEstado > 500) { 
-        pararMotores();
-        tiempoEstado = millis();
-        estadoActual = REINCORPORACION_LINEA;
+    case LIBERAR_ESQUINA: //[cite: 3]
+      // avanzar();[cite: 3]
+      if (millis() - tiempoEstado > 500) { //[cite: 3]
+        // pararMotores();[cite: 3]
+        tiempoEstado = millis(); //[cite: 3]
+        estadoActual = REINCORPORACION_LINEA; //[cite: 3]
       }
       break;
 
-    case REINCORPORACION_LINEA:
-      // Giro a la izquierda de 90° para apuntar de vuelta hacia la línea principal
-      girarIzquierda();
-      if (millis() - tiempoEstado > 650) {
-        pararMotores();
-        tiempoEstado = millis();
-        estadoActual = BUSQUEDA_LINEA;
+    case REINCORPORACION_LINEA: //[cite: 3]
+      // girarIzquierda();[cite: 3]
+      if (millis() - tiempoEstado > 650) { //[cite: 3]
+        // pararMotores();[cite: 3]
+        tiempoEstado = millis(); //[cite: 3]
+        estadoActual = BUSQUEDA_LINEA; //[cite: 3]
       }
       break;
 
-    case BUSQUEDA_LINEA:
-      avanzarLento();
+    case BUSQUEDA_LINEA: //[cite: 3]
+      // avanzarLento();[cite: 3]
       
-      // Detección de retorno a la línea negra con los TCRT5000
-      if (sensorIR_detectaLinea()) { 
-        pararMotores();
-        estadoActual = SEGUIDOR_LINEA; 
+      /* TODO: Implementar sensores IR
+      if (sensorIR_detectaLinea()) {[cite: 3]
+        pararMotores();[cite: 3]
+        estadoActual = SEGUIDOR_LINEA;[cite: 3]
       }
+      */
       
-      // Watchdog de seguridad: Si avanza por más de 3.5s sin hallar línea, frena
-      if (millis() - tiempoEstado > 3500) {
-        pararMotores();
-        // Manejar error o re-orientar
+      if (millis() - tiempoEstado > 3500) { //[cite: 3]
+        // pararMotores();[cite: 3]
       }
       break;
   }
