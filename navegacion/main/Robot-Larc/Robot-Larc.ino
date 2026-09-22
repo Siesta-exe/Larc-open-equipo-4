@@ -1,116 +1,91 @@
-// ==========================================
-// Pestaña Principal: Robot_LARC.ino (Arduino Uno)
-// ==========================================
-
 enum EstadoNavegacion {
   SEGUIDOR_LINEA,
   GIRO_DESVIO,
   SEGUIDOR_PARED,
-  LIBERAR_ESQUINA,
-  REINCORPORACION_LINEA,
+  SOBREPASO,
   BUSQUEDA_LINEA
 };
 
-EstadoNavegacion estadoActual = SEGUIDOR_LINEA; //[cite: 3]
+// Prototipos externos
+int calcularErrorLinea();
+bool sensorIR_detectaLinea();
+void resetControlPD(); // Prototipo de la función agregada en Motores.ino
 
-// Pines Ultrasonidos para Arduino Uno (Pines 2 al 7)[cite: 3]
-const int trigFrenteBajo = 2; //[cite: 3]
-const int echoFrenteBajo = 3; //[cite: 3]
+EstadoNavegacion estadoActual = SEGUIDOR_LINEA;
 
-const int trigFrenteAlto = 4; //[cite: 3]
-const int echoFrenteAlto = 5; //[cite: 3]
+const int trigFrenteBajo = A0;
+const int echoFrenteBajo = A1;
+const int trigFrenteAlto = A2;
+const int echoFrenteAlto = A3;
+const int trigLateral    = A4;
+const int echoLateral    = A5;
 
-const int trigLateral = 6;    //[cite: 3]
-const int echoLateral = 7;    //[cite: 3]
+const int PULSOS_GIRO_90 = 250; 
 
-// Umbrales de distancia (cm)[cite: 3]
-const int DIST_DETECCION_PISCINA = 18; //[cite: 3]
-const int DIST_PARED_OBJETIVO = 15;    //[cite: 3]
-const int DIST_PARED_PERDIDA = 35;     //[cite: 3]
-
-unsigned long tiempoEstado = 0; //[cite: 3]
+// Prototipos externos
+int calcularErrorLinea();
+bool sensorIR_detectaLinea();
 
 void setup() {
-  Serial.begin(115200); //[cite: 3]
-  delay(500); //[cite: 3]
-  
-  Serial.println("=================================");
-  Serial.println("ARDUINO UNO INICIADO CORRECTAMENTE");
-  Serial.println("=================================");
+  Serial.begin(115200);
 
-  // Inicialización de pines mediante Ultrasonidos.ino
-  setupUltrasonidos(); //[cite: 3]
+  pinMode(trigFrenteBajo, OUTPUT);
+  pinMode(echoFrenteBajo, INPUT);
+  pinMode(trigFrenteAlto, OUTPUT);
+  pinMode(echoFrenteAlto, INPUT);
+  pinMode(trigLateral, OUTPUT);
+  pinMode(echoLateral, INPUT);
+
+  setupMotores();
 }
 
 void loop() {
-  int distBajo = 0; //[cite: 3]
-  int distLat = 0;  //[cite: 3]
+  switch (estadoActual) {
 
-  switch (estadoActual) { //[cite: 3]
-    
-    case SEGUIDOR_LINEA: //[cite: 3]
-      // seguirLineaIR(); // TODO: Implementar control con TCRT5000[cite: 3]
-      
-      // Muestreo corregido del sensor Frente-Bajo usando la lectura filtrada[cite: 3, 4]
-      distBajo = leerDistanciaFiltrada(trigFrenteBajo, echoFrenteBajo); //[cite: 4]
-      if (distBajo < DIST_DETECCION_PISCINA) { //[cite: 3]
-        // pararMotores();[cite: 3]
-        tiempoEstado = millis(); //[cite: 3]
-        estadoActual = GIRO_DESVIO; //[cite: 3]
+    case SEGUIDOR_LINEA: {
+      aplicarControlPD(calcularErrorLinea()); 
+
+      int distFrente = leerDistancia(trigFrenteBajo, echoFrenteBajo);
+      if (distFrente < 18) {
+        pararMotores();
+        resetControlPD(); // Preparemos el PD para cuando vuelva a usarse
+        estadoActual = GIRO_DESVIO;
       }
       break;
+    }
 
-    case GIRO_DESVIO: //[cite: 3]
-      // girarDerecha(); //[cite: 3]
-      if (millis() - tiempoEstado > 650) { //[cite: 3]
-        // pararMotores();[cite: 3]
-        estadoActual = SEGUIDOR_PARED; //[cite: 3]
-      }
+    case GIRO_DESVIO:
+      girarDerechaPorPulsos(PULSOS_GIRO_90);
+      pararMotores();
+      resetControlPD(); // <-- IMPORTANTE: Prepara el PD para el inicio de la pared
+      estadoActual = SEGUIDOR_PARED;
       break;
 
-    case SEGUIDOR_PARED: //[cite: 3]
-      // Muestreo corregido con la función de alto nivel del sensor lateral[cite: 3, 4]
-      distLat = obtenerDistanciaLateral(); //[cite: 4]
-      
-      if (distLat < DIST_PARED_PERDIDA) { //[cite: 3]
-        // avanzarControladoPared(distLat, DIST_PARED_OBJETIVO);[cite: 3]
-      } else {
-        // pararMotores();[cite: 3]
-        tiempoEstado = millis(); //[cite: 3]
-        estadoActual = LIBERAR_ESQUINA; //[cite: 3]
+    case SEGUIDOR_PARED: {
+      int distLateral = leerDistancia(trigLateral, echoLateral);
+
+      aplicarControlPD(calcularErrorPared(distLateral));
+
+      if (distLateral > 35 && distLateral != 999) {
+        resetControlPD(); // Prepara el PD para después de la evasión
+        estadoActual = SOBREPASO;
       }
       break;
+    }
 
-    case LIBERAR_ESQUINA: //[cite: 3]
-      // avanzar();[cite: 3]
-      if (millis() - tiempoEstado > 500) { //[cite: 3]
-        // pararMotores();[cite: 3]
-        tiempoEstado = millis(); //[cite: 3]
-        estadoActual = REINCORPORACION_LINEA; //[cite: 3]
-      }
+    case SOBREPASO:
+      avanzar();
+      delay(350); 
+      girarIzquierdaPorPulsos(PULSOS_GIRO_90);
+      resetControlPD(); // Prepara el PD para engancharse a la línea
+      estadoActual = BUSQUEDA_LINEA;
       break;
 
-    case REINCORPORACION_LINEA: //[cite: 3]
-      // girarIzquierda();[cite: 3]
-      if (millis() - tiempoEstado > 650) { //[cite: 3]
-        // pararMotores();[cite: 3]
-        tiempoEstado = millis(); //[cite: 3]
-        estadoActual = BUSQUEDA_LINEA; //[cite: 3]
-      }
-      break;
-
-    case BUSQUEDA_LINEA: //[cite: 3]
-      // avanzarLento();[cite: 3]
-      
-      /* TODO: Implementar sensores IR
-      if (sensorIR_detectaLinea()) {[cite: 3]
-        pararMotores();[cite: 3]
-        estadoActual = SEGUIDOR_LINEA;[cite: 3]
-      }
-      */
-      
-      if (millis() - tiempoEstado > 3500) { //[cite: 3]
-        // pararMotores();[cite: 3]
+    case BUSQUEDA_LINEA:
+      avanzar();
+      if (sensorIR_detectaLinea()) {
+        resetControlPD(); // <-- IMPORTANTE: Suaviza el enganche a la línea
+        estadoActual = SEGUIDOR_LINEA;
       }
       break;
   }
